@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cycling &amp; Health Analytics</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="/static/vendor/chart.umd.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>🚴 Cycling &amp; Health Analytics</h1>
+    <div id="connection-bar" class="connection-bar">
+      <span id="strava-status" class="pill pill-off">Strava: disconnesso</span>
+      <span id="garmin-status" class="pill pill-off">Garmin: disconnesso</span>
+      <button id="sync-btn">Sincronizza ora</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="overview">Panoramica</button>
+    <button class="tab-btn" data-tab="cycling">Prestazioni ciclistiche</button>
+    <button class="tab-btn" data-tab="health">Salute &amp; benessere</button>
+    <button class="tab-btn" data-tab="connect">Collega account</button>
+  </nav>
+
+  <main>
+    <section id="tab-overview" class="tab-panel active">
+      <div class="card-grid">
+        <div class="card" id="readiness-card">
+          <h2>Prontezza di oggi</h2>
+          <div class="big-number" id="readiness-score">—</div>
+          <div id="readiness-label" class="muted">Nessun dato: esegui una sincronizzazione</div>
+        </div>
+        <div class="card">
+          <h2>Forma (TSB, ultimi 14 giorni)</h2>
+          <canvas id="pmc-mini-chart" height="140"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Attività recenti</h2>
+        <div id="recent-activities-table"></div>
+      </div>
+    </section>
+
+    <section id="tab-cycling" class="tab-panel">
+      <div class="card">
+        <h2>Performance Management Chart (CTL / ATL / TSB)</h2>
+        <p class="muted">CTL = fitness (carico cronico, media 42gg) · ATL = fatica (carico acuto, media 7gg) · TSB = forma (CTL - ATL)</p>
+        <canvas id="pmc-chart" height="100"></canvas>
+      </div>
+      <div class="card">
+        <h2>Curva di potenza (migliori valori, ultimi 90 giorni)</h2>
+        <div id="ftp-line" class="muted"></div>
+        <canvas id="power-curve-chart" height="100"></canvas>
+      </div>
+      <div class="card">
+        <h2>Tutte le attività</h2>
+        <div id="activities-table"></div>
+      </div>
+    </section>
+
+    <section id="tab-health" class="tab-panel">
+      <div class="card-grid">
+        <div class="card"><h2>Sonno (score)</h2><canvas id="sleep-chart" height="140"></canvas></div>
+        <div class="card"><h2>Body Battery (min/max)</h2><canvas id="battery-chart" height="140"></canvas></div>
+        <div class="card"><h2>Stress medio</h2><canvas id="stress-chart" height="140"></canvas></div>
+        <div class="card"><h2>Training Readiness (Garmin)</h2><canvas id="readiness-chart" height="140"></canvas></div>
+      </div>
+    </section>
+
+    <section id="tab-connect" class="tab-panel">
+      <div class="card">
+        <h2>Strava</h2>
+        <p class="muted">Serve un'app Strava (Client ID/Secret) configurata nel file <code>.env</code> del backend. Vedi il README.</p>
+        <a href="/api/auth/strava/login"><button>Collega Strava</button></a>
+      </div>
+      <div class="card">
+        <h2>Garmin Connect</h2>
+        <p class="muted">Login diretto con le tue credenziali Garmin (client non ufficiale <code>garminconnect</code>). Le credenziali non vengono salvate: viene salvata solo la sessione ottenuta dopo il login.</p>
+        <form id="garmin-login-form">
+          <input type="email" id="garmin-email" placeholder="Email Garmin" required />
+          <input type="password" id="garmin-password" placeholder="Password Garmin" required />
+          <button type="submit">Accedi</button>
+        </form>
+        <form id="garmin-mfa-form" class="hidden">
+          <input type="text" id="garmin-mfa-code" placeholder="Codice MFA" required />
+          <button type="submit">Conferma codice</button>
+        </form>
+        <div id="garmin-connect-msg" class="muted"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
