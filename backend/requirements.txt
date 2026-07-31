@@ -5,3 +5,4 @@ httpx==0.27.2
 python-dotenv==1.0.1
 pydantic-settings==2.5.2
 garminconnect>=0.3.2
+mcp>=2.0.0
