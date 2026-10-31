@@ -10,6 +10,7 @@ Obiettivo della dashboard: alzare FTP e VO2 max in bici.
 
 import bisect
 import json
+import re
 import statistics
 from collections import defaultdict
 from datetime import timedelta
@@ -17,6 +18,7 @@ from datetime import timedelta
 import garmin_api as g
 
 OUT = g.HERE / "dashboard.html"
+PUBLISH = g.HERE / "dashboard_publish.html"  # stessa pagina senza involucro, per pubblicarla come Artifact
 TEMPLATE = g.HERE / "dashboard_template.html"
 
 DURATIONS = [1, 5, 10, 20, 30, 60, 120, 300, 600, 1200, 1800, 3600, 7200]
@@ -325,6 +327,10 @@ def main():
     data = json.dumps(payload, ensure_ascii=True, separators=(",", ":")).replace("</", "<\\/")
     html = TEMPLATE.read_text(encoding="utf-8").replace("/*__DATA__*/null", data)
     OUT.write_text(html, encoding="utf-8")
+    head = html.split("<head>", 1)[1].split("</head>", 1)[0]
+    head = re.sub(r'\s*<meta (charset|name="viewport")[^>]*>', "", head)
+    body = html.split("<body>", 1)[1].rsplit("</body>", 1)[0]
+    PUBLISH.write_text(head.strip() + "\n" + body.strip() + "\n", encoding="utf-8")
     print("Dashboard scritta in %s (%d KB)" % (OUT, len(html) // 1024))
     return 0
 

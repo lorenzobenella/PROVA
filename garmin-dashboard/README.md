@@ -26,6 +26,9 @@ La chiave non viene mai stampata. `.env.local`, `data/` e `dashboard.html` sono 
 | `python build.py` | costruisce `dashboard.html` dai dati in `data/` (modello: `dashboard_template.html`) |
 | `./refresh.sh` (Mac/Linux) o `refresh.bat` (Windows) | `pull.py` + `build.py` |
 
+`build.py` scrive anche `dashboard_publish.html`: la stessa pagina senza involucro HTML,
+da ripubblicare come Artifact privato su claude.ai allo stesso indirizzo.
+
 ## Come sono salvati i dati
 
 - `data/activities/AAAA-MM.json`: le attività di ogni mese, per `activityId`.
