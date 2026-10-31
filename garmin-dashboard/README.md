@@ -23,7 +23,7 @@ La chiave non viene mai stampata. `.env.local`, `data/` e `dashboard.html` sono 
 | `python pull.py` | scarica gli ultimi 12 mesi; le volte dopo solo il nuovo |
 | `python pull.py --all` | scarica tutto lo storico |
 | `python pull.py --fit ID` | scarica il file FIT originale di un'attività |
-| `python build.py` | costruisce `dashboard.html` dai dati in `data/` |
+| `python build.py` | costruisce `dashboard.html` dai dati in `data/` (modello: `dashboard_template.html`) |
 | `./refresh.sh` (Mac/Linux) o `refresh.bat` (Windows) | `pull.py` + `build.py` |
 
 ## Come sono salvati i dati
@@ -37,3 +37,18 @@ La chiave non viene mai stampata. `.env.local`, `data/` e `dashboard.html` sono 
 
 Se Garmin risponde 500 lo script dimezza l'intervallo e riprova; su 429/502/503
 aspetta e riprova; una risposta 204 vuol dire "nessun dato" e non è un errore.
+
+## Cosa mostra la dashboard
+
+Costruita attorno all'obiettivo "alzare FTP e VO2 max" in bici, stile scuro.
+
+- **FTP Garmin**: ricostruita da ogni uscita come normalized power / intensity factor
+  (l'API non ha un endpoint per la FTP).
+- **FTP stimata**: 95% del miglior 20' degli ultimi 90 giorni.
+- **VO2 max stimato**: 16,6 + 8,87 x (potenza 5' / peso), Sitko et al. 2021. L'API non
+  espone il VO2 max dell'orologio.
+- **TSS, CTL, ATL**: TSS ricalcolato con una FTP coerente nel tempo (95% del miglior 20'
+  dei 180 giorni precedenti), perché fino al 2021 la FTP impostata in Garmin era
+  troppo bassa e gonfiava il TSS di Garmin.
+- Questa settimana contro le 4 precedenti, curva di potenza, record, minuti nelle zone,
+  volume per sport, battito a riposo, HRV e sonno. Filtro periodo: 3 mesi, 12 mesi, 3 anni, tutto.
