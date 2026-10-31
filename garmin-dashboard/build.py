@@ -132,8 +132,9 @@ def main():
     weights = []
     for d, rec in g.load_series("weight").items():
         w = (rec.get("latestWeight") or {}).get("weight")
-        if w:
-            weights.append((g.parse_day(d), w / 1000 if w > 1000 else w))
+        kg = (w / 1000 if w > 1000 else w) if w else None
+        if kg and 35 <= kg <= 150:  # scarta pesate impossibili (es. 8 kg inserito per errore)
+            weights.append((g.parse_day(d), kg))
     weight = Steps(weights)
     ftp_g = garmin_ftp(bike)
 
