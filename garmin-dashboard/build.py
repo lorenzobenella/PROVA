@@ -20,6 +20,7 @@ import garmin_api as g
 OUT = g.HERE / "dashboard.html"
 PUBLISH = g.HERE / "dashboard_publish.html"  # stessa pagina senza involucro, per pubblicarla come Artifact
 TEMPLATE = g.HERE / "dashboard_template.html"
+TESTS = g.HERE / "ftp_tests.json"  # FTP misurate con un test (ramp, 20'), inserite a mano
 
 DURATIONS = [1, 5, 10, 20, 30, 60, 120, 300, 600, 1200, 1800, 3600, 7200]
 # oltre questi valori (watt) la potenza e' quasi certamente un errore del sensore
@@ -96,6 +97,13 @@ def garmin_ftp(bike):
     return Steps([(w + timedelta(days=6), round(statistics.median(v))) for w, v in weeks.items()])
 
 
+def load_tests():
+    if not TESTS.exists():
+        return []
+    rows = json.loads(TESTS.read_text(encoding="utf-8"))
+    return sorted((g.parse_day(r["date"]), float(r["watts"]), r.get("note") or "test") for r in rows)
+
+
 def ftp_since(steps, now, tol=3):
     """Primo giorno della serie di settimane consecutive con la FTP attuale (+-3 W di arrotondamento)."""
     if now is None:
@@ -137,15 +145,19 @@ def main():
             weights.append((g.parse_day(d), kg))
     weight = Steps(weights)
     ftp_g = garmin_ftp(bike)
+    tests = load_tests()
+    test_at = Steps([(d, w) for d, w, _ in tests])
 
-    # TSS ricalcolato con una FTP coerente nel tempo (95% del miglior 20' sugli ultimi 180 giorni):
-    # il TSS di Garmin usa la FTP impostata, che fino al 2021 era troppo bassa e gonfiava tutto.
+    # TSS ricalcolato con una FTP coerente nel tempo: l'ultimo test dei 180 giorni precedenti,
+    # altrimenti il 95% del miglior 20'. Il TSS di Garmin usa la FTP impostata, che fino al 2021
+    # era troppo bassa e gonfiava tutto.
     ref_cache = {}
 
     def ftp_ref(d):
         if d not in ref_cache:
+            recent = [w for td, w, _ in tests if d - timedelta(days=180) <= td <= d]
             b20 = rolling_best(bike_pw, 1200, d, days=180)[0]
-            ref_cache[d] = 0.95 * b20 if b20 else ftp_g.at(d)
+            ref_cache[d] = recent[-1] if recent else (0.95 * b20 if b20 else ftp_g.at(d))
         return ref_cache[d]
 
     def tss(act):
@@ -182,11 +194,13 @@ def main():
         weekly[k] = [r1(v) for v in weekly[k]]
 
     weekly["ftp_garmin"], weekly["ftp_est"], weekly["p5"], weekly["vo2"] = [], [], [], []
+    weekly["ftp_test"] = []
     for w in weeks:
         end = min(w + timedelta(days=6), today)
         b20 = rolling_best(bike_pw, 1200, end)[0]
         b5 = rolling_best(bike_pw, 300, end)[0]
         weekly["ftp_garmin"].append(ftp_g.at(end, fallback_first=False))
+        weekly["ftp_test"].append(test_at.at(end, fallback_first=False))
         weekly["ftp_est"].append(r1(0.95 * b20) if b20 else None)
         weekly["p5"].append(r1(b5))
         weekly["vo2"].append(r1(vo2(b5, end)))
@@ -237,9 +251,22 @@ def main():
     b20_old = rolling_best(bike_pw, 1200, ago(365))[0]
     kg_now = weight.at(today)
     ftp_now = ftp_g.at(today, fallback_first=False)
+    since = ftp_since(ftp_g, ftp_now)
+    test = tests[-1] if tests else None
+    use_test = bool(test) and (since is None or test[0] >= g.parse_day(since))
+    demo = [(w, d) for d, w, _ in tests]
+    demo += [(v, weeks[i]) for i, v in enumerate(weekly["ftp_est"]) if v]
+    demo_max = max(demo, key=lambda x: x[0]) if demo else (None, None)
     hero = {
+        "ftp_main": round(test[1]) if use_test else ftp_now,
+        "ftp_main_src": "test" if use_test else "garmin",
+        "ftp_main_label": test[2] if use_test else "",
+        "test_day": test[0].isoformat() if use_test else None,
+        "ftp_main_365": test_at.at(ago(365), False) or ftp_g.at(ago(365), False),
+        "demo_max": round(demo_max[0]) if demo_max[0] else None,
+        "demo_max_day": demo_max[1].isoformat() if demo_max[1] else None,
         "ftp": ftp_now, "ftp_90": ftp_g.at(ago(90), False), "ftp_365": ftp_g.at(ago(365), False),
-        "ftp_since": ftp_since(ftp_g, ftp_now),
+        "ftp_since": since,
         "ftp_max": max(ftp_g.vals) if ftp_g.vals else None,
         "ftp_max_day": ftp_g.days[ftp_g.vals.index(max(ftp_g.vals))].isoformat() if ftp_g.vals else None,
         "kg": r1(kg_now), "kg_day": weight.days[-1].isoformat() if weight.days else None,

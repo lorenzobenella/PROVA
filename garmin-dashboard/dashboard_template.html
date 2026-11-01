@@ -168,7 +168,7 @@ footer p { margin: 0 0 8px; }
 <div class="grid2">
   <div class="card">
     <h3>La FTP sta salendo?</h3>
-    <p class="sub">FTP impostata in Garmin e FTP stimata dai tuoi 20 minuti migliori (95%, finestra di 90 giorni).</p>
+    <p class="sub">FTP impostata in Garmin, FTP stimata dai tuoi 20 minuti migliori (95%, finestra di 90 giorni) e FTP misurata con i test.</p>
     <div id="ftp-legend"></div>
     <div class="chart" id="ftp"></div>
     <details class="tbl"><summary>Vedi i numeri</summary><div class="scroll" id="ftp-table"></div></details>
@@ -516,14 +516,14 @@ function renderTop() {
   document.getElementById("lead").textContent =
     `${nf(D.counts.acts)} attività dal ${fDay(toT(D.counts.first))}, di cui ${nf(D.counts.bike)} in bici.`;
 
-  // quadrante: FTP di oggi rispetto alla piu' alta mai impostata
+  // quadrante: FTP di oggi rispetto alla piu' alta dimostrata (test o 95% del miglior 20')
   const dial = document.getElementById("dial");
   const R = 128, C = 2 * Math.PI * R, arc = 0.75;
   const svg = S("svg", { viewBox: "0 0 300 254", "aria-hidden": "true" }, dial);
   const base = { cx: 150, cy: 150, r: R, fill: "none", "stroke-width": 10, "stroke-linecap": "round",
     transform: "rotate(135 150 150)" };
   S("circle", Object.assign({}, base, { stroke: COL("--z3"), "stroke-dasharray": `${C * arc} ${C}` }), svg);
-  const frac = h.ftp && h.ftp_max ? Math.min(1, h.ftp / h.ftp_max) : 0;
+  const frac = h.ftp_main && h.demo_max ? Math.min(1, h.ftp_main / h.demo_max) : 0;
   S("circle", Object.assign({}, base, { stroke: COL("--s1"), "stroke-dasharray": `${C * arc * frac} ${C}` }), svg);
   for (let i = 0; i <= 12; i++) {  // tacche da quadrante
     const a = (135 + i * 270 / 12) * Math.PI / 180;
@@ -531,15 +531,17 @@ function renderTop() {
       y2: 150 + Math.sin(a) * (i % 3 ? 106 : 100), stroke: COL("--axis"), "stroke-width": 2, "stroke-linecap": "round" }, svg);
   }
   const c = H("div", "center", null, dial);
-  H("div", "lbl", "FTP Garmin", c);
-  const big = H("div", "big", nf(h.ftp), c);
+  const fromTest = h.ftp_main_src === "test";
+  H("div", "lbl", fromTest ? "FTP · " + h.ftp_main_label : "FTP Garmin", c);
+  const big = H("div", "big", nf(h.ftp_main), c);
   H("small", null, "W", big);
-  H("div", "wkg", h.kg ? nf(h.ftp / h.kg, 2) + " W/kg" : "", c);
-  const dl = delta(h.ftp, h.ftp_365, "W", 0, "in 12 mesi");
+  H("div", "wkg", h.kg ? nf(h.ftp_main / h.kg, 2) + " W/kg" : "", c);
+  const dl = delta(h.ftp_main, h.ftp_main_365, "W", 0, "in 12 mesi");
   H("div", "d " + dl.cls, dl.text, c).style.cssText = "font-size:14px;margin-top:8px";
   document.getElementById("dial-note").textContent =
-    `L'arco pieno è la FTP più alta mai impostata: ${nf(h.ftp_max)} W (${fDay(toT(h.ftp_max_day))}).` +
-    (h.ftp_since ? ` Valore attuale dal ${fDay(toT(h.ftp_since))}.` : "");
+    (fromTest ? `Misurata con il ${h.ftp_main_label} del ${fDay(toT(h.test_day))}. `
+      : (h.ftp_since ? `Impostata in Garmin dal ${fDay(toT(h.ftp_since))}. ` : "")) +
+    (h.demo_max ? `L'arco pieno è la FTP più alta che hai dimostrato: ${nf(h.demo_max)} W (${fDay(toT(h.demo_max_day))}).` : "");
 
   const tiles = document.getElementById("tiles");
   tile(tiles, "VO2 max stimato", nf(h.vo2, 1), "ml/kg/min", delta(h.vo2, h.vo2_365, "", 1, "in 12 mesi"),
@@ -550,6 +552,13 @@ function renderTop() {
     "95% del miglior 20′ degli ultimi 90 giorni.");
   tile(tiles, "Peso", nf(h.kg, 1), "kg", null, h.kg_day ? "Ultima pesata: " + fDay(toT(h.kg_day)) + "." : null);
   tile(tiles, "Fitness (CTL)", nf(h.ctl), "", null, `Fatica (ATL) ${nf(h.atl)}, forma (TSB) ${nf(h.ctl - h.atl)}.`);
+  if (fromTest) {
+    const off = h.ftp != null ? h.ftp - h.ftp_main : null;
+    tile(tiles, "FTP impostata in Garmin", nf(h.ftp), "W", null,
+      off == null ? null : Math.abs(off) <= 5 ? "Allineata al test: zone e minuti in zona 4 sono affidabili."
+        : `${nf(Math.abs(off))} W ${off > 0 ? "sopra" : "sotto"} il test: correggila in Garmin Connect, zone e minuti in zona 4 dipendono da lei.`);
+    return;
+  }
   const gap = h.ftp != null && h.ftp_est != null ? h.ftp - h.ftp_est : null;
   tile(tiles, "FTP Garmin contro i dati", gap == null ? "–" : (gap > 0 ? "+" : "") + nf(gap), "W", null,
     gap == null ? null : Math.abs(gap) <= 8 ? "Allineate: la FTP impostata è coerente con i tuoi 20′."
@@ -672,14 +681,17 @@ function tableRows(t, fmt, cols, decs) {
 function renderTrends() {
   // FTP
   const w = weeklyCut();
+  const ftpG = w.get("ftp_garmin"), ftpE = w.get("ftp_est"), ftpT = w.get("ftp_test"), wFmt = x => "Settimana dal " + fDay(x);
+  const hasTest = ftpT.some(v => v != null);
   legend(document.getElementById("ftp-legend"), [
-    { name: "FTP impostata in Garmin", color: "--s1" }, { name: "FTP stimata dai 20′", color: "--s2" }]);
-  const ftpG = w.get("ftp_garmin"), ftpE = w.get("ftp_est"), wFmt = x => "Settimana dal " + fDay(x);
+    { name: "FTP impostata in Garmin", color: "--s1" }, { name: "FTP stimata dai 20′", color: "--s2" }]
+    .concat(hasTest ? [{ name: "FTP da test", color: "--s3" }] : []));
   lineChart(document.getElementById("ftp"), { x: w.t, xFmt: wFmt, label: "FTP nel tempo",
     series: [{ name: "Garmin", color: "--s1", vals: ftpG, unit: "W", step: true },
-             { name: "stimata dai 20′", color: "--s2", vals: ftpE, unit: "W" }] });
-  table(document.getElementById("ftp-table"), ["Settimana", "FTP Garmin", "FTP stimata"],
-    tableRows(w.t, fDay, [ftpG, ftpE], [0, 0]));
+             { name: "stimata dai 20′", color: "--s2", vals: ftpE, unit: "W" }]
+      .concat(hasTest ? [{ name: "da test", color: "--s3", vals: ftpT, unit: "W", step: true }] : []) });
+  table(document.getElementById("ftp-table"), ["Settimana", "FTP Garmin", "FTP stimata", "FTP da test"],
+    tableRows(w.t, fDay, [ftpG, ftpE, ftpT], [0, 0, 0]));
 
   // VO2 max
   const vo2 = w.get("vo2"), p5 = w.get("p5");
@@ -764,7 +776,8 @@ function renderFoot() {
   [
     "FTP Garmin: per ogni uscita con potenza è normalized power diviso intensity factor, cioè la FTP che Garmin aveva impostata quel giorno (mediana della settimana).",
     "VO2 max stimato: 16,6 + 8,87 × (potenza 5′ ÷ peso), formula di Sitko e colleghi (2021) per ciclisti. È una stima: segue i tuoi 5 minuti migliori, quindi sale solo se fai sforzi massimali di quella durata.",
-    "TSS ricalcolato per ogni uscita con potenza usando come FTP il 95% del miglior 20′ dei 180 giorni precedenti: il TSS di Garmin usa la FTP impostata, che fino al 2021 era troppo bassa (circa 200 W) e lo gonfiava. CTL e ATL: medie esponenziali del TSS su 42 e 7 giorni.",
+    "FTP da test: i valori nel file ftp_tests.json (ramp test: 75% del miglior minuto). Quando c'è un test più recente dell'ultima modifica in Garmin, è lui il numero grande in alto.",
+    "TSS ricalcolato per ogni uscita con potenza usando come FTP l'ultimo test dei 180 giorni precedenti, oppure il 95% del miglior 20′: il TSS di Garmin usa la FTP impostata, che fino al 2021 era troppo bassa (circa 200 W) e lo gonfiava. CTL e ATL: medie esponenziali del TSS su 42 e 7 giorni.",
     "Fonte: Garmin Connect Personal API (sola lettura), dati scaricati il " + fDay(TODAY) + ".",
   ].forEach(t => H("p", null, t, f));
 }
