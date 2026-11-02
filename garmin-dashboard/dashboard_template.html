@@ -559,6 +559,14 @@ function renderTop() {
         : `${nf(Math.abs(off))} W ${off > 0 ? "sopra" : "sotto"} il test: correggila in Garmin Connect, zone e minuti in zona 4 dipendono da lei.`);
     return;
   }
+  const t = h.last_test;
+  if (t && h.ftp != null) {
+    const off = h.ftp - t.watts;
+    tile(tiles, "FTP Garmin contro il test", (off > 0 ? "+" : "") + nf(off), "W", null,
+      Math.abs(off) <= 5 ? `Allineata al ${t.note} del ${fDay(toT(t.day))} (${nf(t.watts)} W): zone e minuti in zona 4 sono affidabili.`
+        : `${off > 0 ? "Sopra" : "Sotto"} il ${t.note} del ${fDay(toT(t.day))} (${nf(t.watts)} W): correggila in Garmin Connect.`);
+    return;
+  }
   const gap = h.ftp != null && h.ftp_est != null ? h.ftp - h.ftp_est : null;
   tile(tiles, "FTP Garmin contro i dati", gap == null ? "–" : (gap > 0 ? "+" : "") + nf(gap), "W", null,
     gap == null ? null : Math.abs(gap) <= 8 ? "Allineate: la FTP impostata è coerente con i tuoi 20′."

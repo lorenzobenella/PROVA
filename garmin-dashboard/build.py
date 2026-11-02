@@ -94,7 +94,8 @@ def garmin_ftp(bike):
     weeks = defaultdict(list)
     for d, v in kept:
         weeks[monday(d)].append(v)
-    return Steps([(w + timedelta(days=6), round(statistics.median(v))) for w, v in weeks.items()])
+    # valido dal lunedi' della settimana, cosi' un cambio di FTP si vede subito
+    return Steps([(w, round(statistics.median(v))) for w, v in weeks.items()])
 
 
 def load_tests():
@@ -112,7 +113,7 @@ def ftp_since(steps, now, tol=3):
     for d, v in reversed(list(zip(steps.days, steps.vals))):
         if abs(v - now) > tol:
             break
-        since = d - timedelta(days=6)
+        since = d
     return since and since.isoformat()
 
 
@@ -262,6 +263,7 @@ def main():
         "ftp_main_src": "test" if use_test else "garmin",
         "ftp_main_label": test[2] if use_test else "",
         "test_day": test[0].isoformat() if use_test else None,
+        "last_test": {"watts": round(test[1]), "note": test[2], "day": test[0].isoformat()} if test else None,
         "ftp_main_365": test_at.at(ago(365), False) or ftp_g.at(ago(365), False),
         "demo_max": round(demo_max[0]) if demo_max[0] else None,
         "demo_max_day": demo_max[1].isoformat() if demo_max[1] else None,
