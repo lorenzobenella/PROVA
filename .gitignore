@@ -7,3 +7,7 @@ backend/data/*.db
 backend/data/*.json
 .DS_Store
 node_modules/
+# Allenatore: piano e memoria delle notifiche contengono dati di salute.
+# GitHub Actions li salva nel repository solo se il repository è privato.
+coach/out/
+coach/state/

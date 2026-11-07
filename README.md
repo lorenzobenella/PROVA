@@ -14,6 +14,13 @@ Tutti i dati vengono scaricati e salvati in un database SQLite **locale**
 (`backend/data/app.db`) — nessun dato lascia la tua macchina se non verso
 Strava/Garmin stessi.
 
+## Allenatore virtuale
+
+La cartella [`coach/`](coach/README.md) contiene un allenatore che ogni 4 ore (GitHub
+Actions) legge Garmin Personal API e, se vuoi, Strava, adatta la seduta del giorno a sonno,
+HRV e fatica, e te la manda su Telegram/ntfy con i file `.zwo`/`.erg` per i rulli.
+Obiettivo: FTP e VO2max. Istruzioni in [`coach/README.md`](coach/README.md).
+
 ## Cosa calcola
 
 - **Curva di potenza** (best power a 5s / 1min / 5min / 20min / 60min) dagli

@@ -1,0 +1,75 @@
+name: Allenatore
+
+on:
+  schedule:
+    # Ogni 4 ore (orari UTC). In Italia d'inverno: 1:17, 5:17, 9:17, 13:17, 17:17, 21:17.
+    # GitHub puo' ritardare le esecuzioni programmate di qualche minuto.
+    - cron: "17 */4 * * *"
+  workflow_dispatch: # avvio a mano: Actions -> Allenatore -> Run workflow (anche dall'app GitHub)
+
+permissions:
+  contents: write
+
+concurrency:
+  group: allenatore
+  cancel-in-progress: false
+
+jobs:
+  coach:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Controlla il coach (e atleta.toml)
+        run: python -m unittest discover -s coach/tests -t .
+
+      - name: Ripristina la memoria delle notifiche
+        uses: actions/cache/restore@v4
+        with:
+          path: coach/state
+          key: allenatore-state-${{ github.run_id }}
+          restore-keys: allenatore-state-
+
+      - name: Programma la giornata
+        env:
+          GARMIN_PERSONAL_API_KEY: ${{ secrets.GARMIN_PERSONAL_API_KEY }}
+          STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        # --quiet: niente dati di salute nei log, che in un repository pubblico sono pubblici
+        run: python -m coach --quiet
+
+      - name: Salva la memoria delle notifiche
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: coach/state
+          key: allenatore-state-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Salva piano e test FTP nel repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add garmin-dashboard/ftp_tests.json
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" = "true" ]; then
+            git add -f coach/out
+          else
+            echo "::warning::Repository pubblico: il piano NON viene salvato qui perche' contiene dati di salute. Rendilo privato o usa Telegram/ntfy."
+          fi
+          if git diff --cached --quiet; then
+            echo "Niente di nuovo da salvare."
+            exit 0
+          fi
+          git commit -m "Allenatore: piano aggiornato"
+          git pull --rebase --quiet
+          git push

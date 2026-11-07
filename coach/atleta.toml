@@ -1,0 +1,31 @@
+# Profilo dell'atleta e disponibilità. Puoi modificarlo anche dal telefono
+# (app GitHub -> file -> matita). Il coach lo rilegge a ogni esecuzione.
+
+[atleta]
+peso_kg = 70          # usato solo se la bilancia Garmin non ha una pesata negli ultimi 60 giorni
+altezza_cm = 178
+ftp_w = 300           # usata solo se garmin-dashboard/ftp_tests.json è vuoto
+lthr_bici = 169       # soglia cardiaca in bici (da Garmin), per le uscite senza potenza
+fuso_orario = "Europe/Rome"
+
+[piano]
+# Lunedì della settimana 1. I giorni prima seguono la settimana 1 come "avvicinamento".
+inizio = 2026-11-09
+# Blocchi da 4 settimane: 3 di carico crescente + 1 di scarico che finisce con il ramp test.
+# Dopo l'ultimo blocco si ricomincia dal primo, con la FTP aggiornata dal test.
+blocchi = ["vo2", "soglia", "misto"]
+
+[disponibilita]
+# Minuti al giorno. 0 = non mi alleno.
+lun = 60
+mar = 60
+mer = 60
+gio = 60
+ven = 60
+sab = 120
+dom = 120
+
+[eccezioni]
+# Giorni con disponibilità diversa dal solito, per esempio un weekend da 1 ora:
+# "2026-11-21" = 60
+# "2026-11-22" = 0
